@@ -4,44 +4,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Anlık Mesajlaşma Odası v2</title>
+    <title>Süper Chat Odası v4</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
+    <div id="image-viewer-modal" class="image-viewer-overlay" style="display: none;" onclick="closeImageViewer()">
+        <img id="viewer-img" src="" alt="Büyük Görsel">
+    </div>
+
+    <div id="online-users-modal" class="modal-overlay" style="display: none;" onclick="toggleOnlineUsersModal(false)">
+        <div class="modal-content users-list-content" onclick="event.stopPropagation()">
+            <h3><i class="fa-solid fa-users"></i> Aktif Kullanıcılar</h3>
+            <div id="online-users-container" class="online-users-list">
+            </div>
+            <button class="close-modal-btn" onclick="toggleOnlineUsersModal(false)">Kapat</button>
+        </div>
+    </div>
+
     <div id="auth-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
-            <h3><i class="fa-solid fa-user-plus"></i> Profilini Oluştur</h3>
-            <p>Sohbete katılmak için bir isim girin ve avatar seçin:</p>
+            <h3><i class="fa-solid fa-user-astronaut"></i> Profilini Oluştur</h3>
+            <p>Sohbete katılmak için isim girin ve bir profil fotoğrafı yükleyin:</p>
+
             <input type="text" id="username-input" placeholder="Adınız Soyadınız..." maxlength="20">
 
-            <div class="avatar-selection">
-                <label>Avatar Seçin:</label>
-                <div class="avatar-list">
-                    <span class="avatar-option selected" data-icon="fa-user">👤</span>
-                    <span class="avatar-option" data-icon="fa-cat">🐱</span>
-                    <span class="avatar-option" data-icon="fa-dog">🐶</span>
-                    <span class="avatar-option" data-icon="fa-dragon">🐉</span>
-                    <span class="avatar-option" data-icon="fa-ninja">🥷</span>
-                    <span class="avatar-option" data-icon="fa-rocket">🚀</span>
+            <div class="photo-upload-container">
+                <label for="profile-file-input" class="custom-file-upload">
+                    <i class="fa-solid fa-camera"></i> Fotoğraf Seç
+                </label>
+                <input type="file" id="profile-file-input" accept="image/*" onchange="previewUploadedFile(event)">
+                <div class="avatar-preview-box">
+                    <img id="modal-avatar-preview" src="https://via.placeholder.com/150?text=👤" alt="Önizleme">
                 </div>
             </div>
+
             <button id="btn-login" onclick="saveProfile()">Sohbete Başla</button>
         </div>
     </div>
 
     <div class="chat-container">
         <div class="chat-header">
-            <h2><i class="fa-solid fa-comments"></i> Genel Sohbet Odası</h2>
-            <div class="header-user">
-                <i id="user-avatar-icon" class="fa-solid fa-user"></i>
-                <span id="user-badge" class="user-badge">Yükleniyor...</span>
+            <h2><i class="fa-solid fa-fire-flame-curved" style="color: #ef4444;"></i> Mega Chat v4</h2>
+            <div class="header-right-area">
+                <div class="online-counter-badge" onclick="toggleOnlineUsersModal(true)">
+                    <span class="online-dot"></span>
+                    <span id="online-count-text">0 Çevrimiçi</span>
+                </div>
+                <div class="header-user">
+                    <img id="user-avatar-img" src="https://via.placeholder.com/150?text=👤" alt="Profilim"
+                        onclick="viewProfileImage(this.src)">
+                    <span id="user-badge" class="user-badge">Yükleniyor...</span>
+                </div>
             </div>
         </div>
 
         <div id="chat-messages" class="chat-messages">
+        </div>
+
+        <div id="typing-indicator-bar" class="typing-indicator-bar" style="display: none;">
+            <div class="typing-dots">
+                <span></span><span></span><span></span>
+            </div>
+            <small id="typing-text">Biri yazıyor...</small>
         </div>
 
         <div id="reply-preview-bar" class="reply-preview-bar" style="display: none;">
@@ -53,8 +80,14 @@
         </div>
 
         <div class="chat-input-area">
+            <label for="chat-media-input" class="btn-chat-action">
+                <i class="fa-solid fa-paperclip"></i>
+            </label>
+            <input type="file" id="chat-media-input" accept="image/*" onchange="sendMediaMessage(event)"
+                style="display: none;">
+
             <div class="emoji-dropdown-container">
-                <button id="btn-emoji" onclick="toggleEmojiMenu()">
+                <button id="btn-emoji" class="btn-chat-action" onclick="toggleEmojiMenu()">
                     <i class="fa-regular fa-face-smile"></i>
                 </button>
                 <div id="emoji-menu" class="emoji-menu" style="display: none;">
@@ -73,13 +106,17 @@
                 </div>
             </div>
 
-            <input type="text" id="message-input" placeholder="Mesajınızı yazın..." maxlength="250" autocomplete="off">
+            <input type="text" id="message-input" placeholder="Mesajınızı yazın..." maxlength="250" autocomplete="off"
+                oninput="handleTypingStatus()">
 
             <button id="btn-send" onclick="sendMessage()">
                 <i class="fa-solid fa-paper-plane"></i>
             </button>
         </div>
     </div>
+
+    <audio id="notification-sound" src="https://assets.mixkit.co/active_storage/sfx/2357/2357-84.wav"
+        preload="auto"></audio>
 
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
