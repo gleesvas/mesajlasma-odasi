@@ -2,24 +2,77 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anlık Mesajlaşma Odası</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Anlık Mesajlaşma Odası v2</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
+    <div id="auth-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3><i class="fa-solid fa-user-plus"></i> Profilini Oluştur</h3>
+            <p>Sohbete katılmak için bir isim girin ve avatar seçin:</p>
+            <input type="text" id="username-input" placeholder="Adınız Soyadınız..." maxlength="20">
+            
+            <div class="avatar-selection">
+                <label>Avatar Seçin:</label>
+                <div class="avatar-list">
+                    <span class="avatar-option selected" data-icon="fa-user">👤</span>
+                    <span class="avatar-option" data-icon="fa-cat">🐱</span>
+                    <span class="avatar-option" data-icon="fa-dog">🐶</span>
+                    <span class="avatar-option" data-icon="fa-dragon">🐉</span>
+                    <span class="avatar-option" data-icon="fa-ninja">🥷</span>
+                    <span class="avatar-option" data-icon="fa-rocket">🚀</span>
+                </div>
+            </div>
+            <button id="btn-login" onclick="saveProfile()">Sohbete Başla</button>
+        </div>
+    </div>
+
     <div class="chat-container">
         <div class="chat-header">
             <h2><i class="fa-solid fa-comments"></i> Genel Sohbet Odası</h2>
-            <span id="user-badge" class="user-badge">Yükleniyor...</span>
+            <div class="header-user">
+                <i id="user-avatar-icon" class="fa-solid fa-user"></i>
+                <span id="user-badge" class="user-badge">Yükleniyor...</span>
+            </div>
         </div>
 
         <div id="chat-messages" class="chat-messages">
             </div>
 
+        <div id="reply-preview-bar" class="reply-preview-bar" style="display: none;">
+            <div class="reply-info">
+                <small id="reply-target-user">Ayşe yanıtlanıyor...</small>
+                <p id="reply-target-text">Mesaj içeriği...</p>
+            </div>
+            <button onclick="cancelReply()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
         <div class="chat-input-area">
+            <div class="emoji-dropdown-container">
+                <button id="btn-emoji" onclick="toggleEmojiMenu()">
+                    <i class="fa-regular fa-face-smile"></i>
+                </button>
+                <div id="emoji-menu" class="emoji-menu" style="display: none;">
+                    <span onclick="appendEmoji('😊')">😊</span>
+                    <span onclick="appendEmoji('😂')">😂</span>
+                    <span onclick="appendEmoji('😍')">😍</span>
+                    <span onclick="appendEmoji('👍')">👍</span>
+                    <span onclick="appendEmoji('🔥')">🔥</span>
+                    <span onclick="appendEmoji('👏')">👏</span>
+                    <span onclick="appendEmoji('🎉')">🎉</span>
+                    <span onclick="appendEmoji('❤️')">❤️</span>
+                    <span onclick="appendEmoji('😎')">😎</span>
+                    <span onclick="appendEmoji('🤔')">🤔</span>
+                    <span onclick="appendEmoji('😢')">😢</span>
+                    <span onclick="appendEmoji('😮')">😮</span>
+                </div>
+            </div>
+
             <input type="text" id="message-input" placeholder="Mesajınızı yazın..." maxlength="250" autocomplete="off">
+            
             <button id="btn-send" onclick="sendMessage()">
                 <i class="fa-solid fa-paper-plane"></i>
             </button>
