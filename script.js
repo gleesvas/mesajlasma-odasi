@@ -1,13 +1,13 @@
 // Firebase Ayarları
 const firebaseConfig = {
-  apiKey: "AIzaSyDQqjQ14nDWzbCzC7abJDOVIxYWbp9qosI",
-  authDomain: "yurt-paneli.firebaseapp.com",
-  databaseURL: "https://yurt-paneli-default-rtdb.firebaseio.com",
-  projectId: "yurt-paneli",
-  storageBucket: "yurt-paneli.firebasestorage.app",
-  messagingSenderId: "779236033369",
-  appId: "1:779236033369:web:9e3eccdb03e8fa9ae78248",
-  measurementId: "G-H48TZ0E9S2"
+    apiKey: "AIzaSyDQqjQ14nDWzbCzC7abJDOVIxYWbp9qosI",
+    authDomain: "yurt-paneli.firebaseapp.com",
+    databaseURL: "https://yurt-paneli-default-rtdb.firebaseio.com",
+    projectId: "yurt-paneli",
+    storageBucket: "yurt-paneli.firebasestorage.app",
+    messagingSenderId: "779236033369",
+    appId: "1:779236033369:web:9e3eccdb03e8fa9ae78248",
+    measurementId: "G-H48TZ0E9S2"
 };
 
 // Firebase'i Başlat
@@ -50,7 +50,7 @@ function checkUserIdentity() {
     if (savedUser && savedAvatar) {
         currentUser = savedUser;
         selectedAvatarIcon = savedAvatar;
-        
+
         document.getElementById("user-badge").innerText = currentUser;
         document.getElementById("user-avatar-icon").className = `fa-solid ${selectedAvatarIcon}`;
     } else {
@@ -83,7 +83,7 @@ function saveProfile() {
 
     document.getElementById("user-badge").innerText = currentUser;
     document.getElementById("user-avatar-icon").className = `fa-solid ${selectedAvatarIcon}`;
-    
+
     // Modal ekranı kapatıyoruz
     document.getElementById("auth-modal").style.display = "none";
 }
@@ -137,7 +137,7 @@ function sendMessage() {
     };
 
     database.ref('messages_v2/' + id).set(newMessage);
-    
+
     inputField.value = "";
     cancelReply(); // Gönderdikten sonra yanıt barını temizle
 }
@@ -159,7 +159,7 @@ function renderMessages(messagesList) {
     messagesList.forEach(msg => {
         const wrapper = document.createElement("div");
         const isMe = msg.sender === currentUser;
-        
+
         wrapper.className = isMe ? "msg-wrapper me" : "msg-wrapper other";
         wrapper.id = `msg-${msg.id}`;
 
@@ -191,7 +191,7 @@ function renderMessages(messagesList) {
         // Ana Balon İçeriği (İstediğin gibi ":" işareti kaldırıldı!)
         const mainBox = document.createElement("div");
         mainBox.className = "msg-main-box";
-        
+
         const senderNameHtml = isMe ? "" : `<strong>${msg.sender}</strong><br>`;
 
         mainBox.innerHTML = `
@@ -221,7 +221,7 @@ function renderMessages(messagesList) {
 // 3 Nokta Aksiyon Menüsünü Açma
 function openActionMenu(event, id, sender, isMe) {
     event.stopPropagation();
-    
+
     // Eski açık menüleri temizle
     document.querySelectorAll(".action-menu").forEach(el => el.remove());
 
@@ -232,7 +232,7 @@ function openActionMenu(event, id, sender, isMe) {
     // Yanıtla Butonu Herkeste Çıkar
     const msgText = globalMessages[id] ? globalMessages[id].text : "";
     let menuHtml = `<button onclick="startReply('${id}', '${sender}', '${msgText.replace(/'/g, "\\'")}')"><i class="fa-solid fa-reply"></i> Yanıtla</button>`;
-    
+
     // Sil Butonu sadece mesaj sahibinde çıkar
     if (isMe) {
         menuHtml += `<button class="delete-btn" onclick="deleteMessage('${id}')"><i class="fa-solid fa-trash"></i> Sil</button>`;
