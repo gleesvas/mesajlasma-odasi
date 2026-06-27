@@ -10,7 +10,6 @@ const firebaseConfig = {
     measurementId: "G-H48TZ0E9S2"
 };
 
-// Firebase'i güvenli bir şekilde başlat
 if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
 }
@@ -42,7 +41,41 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// 1. Tema Yönetimi
+// Gelişmiş Özellik 1: Görsel Sıkıştırma Motoru (Canvas Tabanlı Hızlandırıcı)
+function compressImage(base64Str, maxWidth = 600, maxHeight = 600) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width *= maxHeight / height;
+                    height = maxHeight;
+                }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2webgl') || canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Kaliteyi %60'a düşürerek kaliteden ödün vermeden hızı uçuruyoruz
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+            resolve(compressedBase64);
+        };
+    });
+}
+
+// Tema Yönetimi
 function toggleTheme() {
     const body = document.body;
     const themeBtn = document.getElementById("theme-toggle-btn");
@@ -70,7 +103,7 @@ function loadSavedTheme() {
     }
 }
 
-// 2. Kimlik, Admin ve Ban Kontrolleri
+// Kimlik ve Ban Kontrolleri
 function checkUserIdentity() {
     const savedUser = localStorage.getItem("chat_user_name_v5");
     const savedImg = localStorage.getItem("chat_user_img_v5");
@@ -102,8 +135,7 @@ function checkIfBanned(uid) {
             announceOnlinePresence();
             loadMessages();
         }
-    }).catch(err => {
-        console.error("Ban kontrol hatası (Yine de giriliyor):", err);
+    }).catch(() => {
         document.getElementById("auth-modal").style.display = "none";
         loadMessages();
     });
@@ -113,8 +145,9 @@ function previewUploadedFile(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => {
-        currentUserImgB64 = e.target.result;
+    reader.onload = async (e) => {
+        // Profil fotoğrafını anında optimize edip küçültüyoruz
+        currentUserImgB64 = await compressImage(e.target.result, 150, 150);
         document.getElementById("modal-avatar-preview").src = currentUserImgB64;
     };
     reader.readAsDataURL(file);
@@ -137,31 +170,28 @@ function saveProfile() {
 
     userUniqueId = "user_" + Math.random().toString(36).substring(2, 11) + "_" + Date.now();
 
-    try {
-        localStorage.setItem("chat_user_name_v5", currentUser);
-        localStorage.setItem("chat_user_img_v5", currentUserImgB64);
-        localStorage.setItem("chat_user_uid_v5", userUniqueId);
-        localStorage.setItem("chat_user_is_admin_v5", isAdmin ? "true" : "false");
+    localStorage.setItem("chat_user_name_v5", currentUser);
+    localStorage.setItem("chat_user_img_v5", currentUserImgB64);
+    localStorage.setItem("chat_user_uid_v5", userUniqueId);
+    localStorage.setItem("chat_user_is_admin_v5", isAdmin ? "true" : "false");
 
-        checkIfBanned(userUniqueId);
-    } catch (e) {
-        // Eğer seçilen fotoğraf çok büyükse localStorage sınırını aşabilir, bunu önlemek için:
-        console.log("Fotoğraf boyutu büyük, varsayılan atandı.");
-        currentUserImgB64 = "https://via.placeholder.com/150?text=" + encodeURIComponent(currentUser[0]);
-        localStorage.setItem("chat_user_name_v5", currentUser);
-        localStorage.setItem("chat_user_img_v5", currentUserImgB64);
-        localStorage.setItem("chat_user_uid_v5", userUniqueId);
-        localStorage.setItem("chat_user_is_admin_v5", isAdmin ? "true" : "false");
+    document.getElementById("auth-modal").style.display = "none";
 
-        checkIfBanned(userUniqueId);
-    }
+    // Gelişmiş Özellik 3: Hoş Geldin Sistem Mesajı Gönderimi
+    pushSystemMessage(`${currentUser} sohbete katıldı 👋`);
+    checkIfBanned(userUniqueId);
 }
 
-// 3. Çevrimiçi Takibi
+// Çevrimiçi Takibi ve Ayrıldı Ayrışması
 function announceOnlinePresence() {
     if (!userUniqueId) return;
     const userStatusRef = database.ref('online_users_v5/' + userUniqueId);
-    userStatusRef.onDisconnect().remove();
+
+    // Gelişmiş Özellik 3: Kullanıcı sekmesini kapattığında Sistem Ayrıldı mesajı düşsün
+    userStatusRef.onDisconnect().remove(() => {
+        pushSystemMessage(`${currentUser} odadan ayrıldı 🚪`);
+    });
+
     userStatusRef.set({
         uid: userUniqueId,
         name: currentUser,
@@ -195,7 +225,7 @@ function toggleOnlineUsersModal(show) {
     modal.style.display = "flex";
 }
 
-// 4. "Yazıyor..." Durumu
+// "Yazıyor..." Durumu
 function handleTypingStatus() {
     if (!userUniqueId) return;
     database.ref('typing_v5/' + userUniqueId).set(currentUser);
@@ -209,11 +239,9 @@ function listenTypingStatus() {
     database.ref('typing_v5').on('value', (snapshot) => {
         const data = snapshot.val() || {};
         const typingList = [];
-
         Object.entries(data).forEach(([uid, name]) => {
             if (uid !== userUniqueId) typingList.push(name);
         });
-
         const bar = document.getElementById("typing-indicator-bar");
         if (typingList.length > 0) {
             document.getElementById("typing-text").innerText = `${typingList.join(", ")} yazıyor...`;
@@ -222,16 +250,16 @@ function listenTypingStatus() {
     });
 }
 
-// 5. Okundu Bilgisi
+// Okundu Bilgisi
 function markMessagesAsRead(messagesList) {
     messagesList.forEach(msg => {
-        if (msg.senderUid !== userUniqueId && (!msg.reads || !msg.reads[userUniqueId])) {
+        if (msg.senderUid && msg.senderUid !== userUniqueId && (!msg.reads || !msg.reads[userUniqueId])) {
             database.ref(`messages_v5/${msg.id}/reads/${userUniqueId}`).set(true);
         }
     });
 }
 
-// 6. Son 50 Mesajı Yükleme
+// Mesajları Yükleme
 let globalMessages = {};
 function loadMessages() {
     database.ref('messages_v5').limitToLast(50).on('value', (snapshot) => {
@@ -243,7 +271,7 @@ function loadMessages() {
 
         if (messagesList.length > lastMessageCount && lastMessageCount > 0) {
             const lastMsg = messagesList[messagesList.length - 1];
-            if (lastMsg.senderUid !== userUniqueId) {
+            if (lastMsg.senderUid && lastMsg.senderUid !== userUniqueId) {
                 document.getElementById("notification-sound").play().catch(() => { });
             }
         }
@@ -253,7 +281,7 @@ function loadMessages() {
     });
 }
 
-// 7. Sohbet İçi Arama
+// Sohbet İçi Arama
 function toggleSearchBox() {
     const input = document.getElementById("search-input");
     if (input.style.display === "none") {
@@ -272,7 +300,7 @@ function filterMessages() {
     renderMessages(Object.values(globalMessages));
 }
 
-// 8. Mesaj Ekrana Çizme (Render)
+// Mesaj Ekrana Çizme (Render) ve Swipe To Reply Entegrasyonu
 function renderMessages(messagesList) {
     const chatMessagesDiv = document.getElementById("chat-messages");
     chatMessagesDiv.innerHTML = "";
@@ -280,11 +308,54 @@ function renderMessages(messagesList) {
     messagesList.forEach(msg => {
         if (searchQuery !== "" && msg.text && !msg.text.toLowerCase().includes(searchQuery)) return;
 
+        // EĞER SİSTEM MESAJIYSA FARKLI RENDER ET
+        if (msg.isSystem) {
+            const sysWrapper = document.createElement("div");
+            sysWrapper.className = "system-msg-wrapper";
+            sysWrapper.innerText = msg.text;
+            chatMessagesDiv.appendChild(sysWrapper);
+            return;
+        }
+
         const wrapper = document.createElement("div");
         const isMe = msg.senderUid === userUniqueId;
 
         wrapper.className = isMe ? "msg-wrapper me" : "msg-wrapper other";
         wrapper.id = `msg-${msg.id}`;
+
+        // Gelişmiş Özellik 2: Swipe To Reply (Sürükleyerek Yanıtla) Dokunmatik Motoru
+        let startX = 0;
+        wrapper.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
+        wrapper.addEventListener('touchmove', (e) => {
+            let moveX = e.touches[0].clientX - startX;
+            if (moveX > 0 && moveX < 80) { // Sadece sağa kaydırma
+                wrapper.style.transform = `translateX(${moveX}px)`;
+            }
+        }, { passive: true });
+        wrapper.addEventListener('touchend', (e) => {
+            let endX = e.changedTouches[0].clientX;
+            if (endX - startX > 60) { // 60px'den fazla kaydıysa yanıtla
+                startReply(msg.id, msg.sender, msg.text || "Fotoğraf");
+            }
+            wrapper.style.transform = "translateX(0px)";
+        });
+
+        // Masaüstü fare ile sürükleme simülasyonu
+        wrapper.addEventListener('mousedown', (e) => {
+            startX = e.clientX;
+            const onMouseMove = (ev) => {
+                let moveX = ev.clientX - startX;
+                if (moveX > 0 && moveX < 80) wrapper.style.transform = `translateX(${moveX}px)`;
+            };
+            const onMouseUp = (ev) => {
+                if (ev.clientX - startX > 60) startReply(msg.id, msg.sender, msg.text || "Fotoğraf");
+                wrapper.style.transform = "translateX(0px)";
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            };
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
 
         let replyHtml = "";
         if (msg.replyTo && globalMessages[msg.replyTo]) {
@@ -322,7 +393,6 @@ function renderMessages(messagesList) {
 
         const mainBox = document.createElement("div");
         mainBox.className = "msg-main-box";
-
         const senderNameHtml = isMe ? "" : `<strong>${msg.sender}</strong><br>`;
 
         let reactionsHtml = "";
@@ -366,7 +436,7 @@ function renderMessages(messagesList) {
     chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
 }
 
-// 9. Menü ve Banlama Yetkileri
+// Menü ve Banlama Yetkileri
 function openActionMenu(event, id, senderName, senderUid, isMe) {
     event.stopPropagation();
     document.querySelectorAll(".action-menu").forEach(el => el.remove());
@@ -420,12 +490,16 @@ function toggleReaction(msgId, emoji) {
     ref.get().then(snap => snap.exists() && snap.val() === emoji ? ref.remove() : ref.set(emoji));
 }
 
-// 10. Mesaj Gönderme
+// Gelişmiş Mesaj ve Optimize Medya Gönderimi
 function sendMediaMessage(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (e) => pushMessageToFirebase("", e.target.result);
+    reader.onload = async (e) => {
+        // Gönderilen sohbet fotoğrafını anında sıkıştırıp öyle yüklüyoruz (Hızın anahtarı)
+        const optimizedImg = await compressImage(e.target.result, 600, 600);
+        pushMessageToFirebase("", optimizedImg);
+    };
     reader.readAsDataURL(file);
     event.target.value = "";
 }
@@ -457,7 +531,16 @@ function pushMessageToFirebase(text, sharedImg) {
     });
 }
 
-// Diğer Yardımcılar
+function pushSystemMessage(text) {
+    const id = "sys_" + Date.now();
+    database.ref('messages_v5/' + id).set({
+        id: id,
+        text: text,
+        isSystem: true
+    });
+}
+
+// Diğer Yardımcı Fonksiyonlar
 function viewProfileImage(src) {
     const modal = document.getElementById("image-viewer-modal");
     const img = document.getElementById("viewer-img");

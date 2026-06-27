@@ -761,3 +761,32 @@ body {
         opacity: 1;
     }
 }
+
+/* --- SİSTEM BİLDİRİM MESAJLARI (Giriş/Çıkış) --- */
+.system-msg-wrapper {
+    align-self: center;
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-muted);
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin: 4px 0;
+    text-align: center;
+    border: 1px dashed var(--border-color);
+}
+
+body.dark-mode .system-msg-wrapper {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* --- SWIPE TO REPLY (KAYDIRARAK YANITLA) DESTEĞİ --- */
+.msg-wrapper {
+    transition: transform 0.15s ease-out;
+    cursor: grab;
+    user-select: none;
+}
+
+.msg-wrapper:active {
+    cursor: grabbing;
+}
