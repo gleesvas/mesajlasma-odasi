@@ -179,20 +179,19 @@ function saveProfile() {
     checkIfBanned(userUniqueId);
 }
 
-// Çevrimiçi Takibi (Hata Düzeltildi)
+// Çevrimiçi Takibi
 function announceOnlinePresence() {
     if (!userUniqueId) return;
     const userStatusRef = database.ref('online_users_v5/' + userUniqueId);
 
-    // onDisconnect kurulumunu .set işleminden bağımsız hale getirdik, böylece ilk girişte tetiklenmiyor
     userStatusRef.onDisconnect().remove();
 
-    // Gerçek ayrılma mesajı için sadece bağlantı koptuğunda çalışacak ayrı bir referans
+    // Ayrılma mesajının zaman damgasını milisaniye cinsinden sayısal olarak tutuyoruz
     database.ref('messages_v5/sys_disconnect_' + userUniqueId).onDisconnect().set({
         id: 'sys_disconnect_' + userUniqueId,
         text: `${currentUser} odadan ayrıldı 🚪`,
         isSystem: true,
-        orderTimestamp: firebase.database.ServerValue.TIMESTAMP // Ayrıldığı anın zaman damgası
+        orderTimestamp: Date.now() + 50 // Bağlantı koptuğu anın zaman damgası
     });
 
     userStatusRef.set({
@@ -262,16 +261,19 @@ function markMessagesAsRead(messagesList) {
     });
 }
 
-// Mesajları Yükleme (Sıralama Eklendi)
+// Mesajları Yükleme (İndeks Bağımsız JavaScript Sıralama Garantisi)
 let globalMessages = {};
 function loadMessages() {
-    // orderTimestamp parametresine göre kronolojik sıralayarak çekiyoruz
-    database.ref('messages_v5').orderByChild('orderTimestamp').limitToLast(50).on('value', (snapshot) => {
+    database.ref('messages_v5').limitToLast(50).on('value', (snapshot) => {
         const data = snapshot.val();
         globalMessages = data ? data : {};
 
-        // Firebase orderBy veri çekerken obje sıralamasını bozabileceği için listeyi manuel olarak zaman damgasına göre sıralıyoruz
-        const messagesList = Object.values(globalMessages).sort((a, b) => a.orderTimestamp - b.orderTimestamp);
+        // HATA ÇÖZÜMÜ: Firebase indeks ayarı açık olmasa bile JavaScript ile kesin kronolojik sıralama yapıyoruz
+        const messagesList = Object.values(globalMessages).sort((a, b) => {
+            const timeA = a.orderTimestamp || 0;
+            const timeB = b.orderTimestamp || 0;
+            return timeA - timeB;
+        });
 
         markMessagesAsRead(messagesList);
 
@@ -305,7 +307,7 @@ function filterMessages() {
     searchQuery = document.getElementById("search-input").value.toLowerCase().trim();
     const filtered = Object.values(globalMessages)
         .filter(msg => searchQuery === "" || (msg.text && msg.text.toLowerCase().includes(searchQuery)))
-        .sort((a, b) => a.orderTimestamp - b.orderTimestamp);
+        .sort((a, b) => (a.orderTimestamp || 0) - (b.orderTimestamp || 0));
     renderMessages(filtered);
 }
 
@@ -315,7 +317,6 @@ function renderMessages(messagesList) {
     chatMessagesDiv.innerHTML = "";
 
     messagesList.forEach(msg => {
-        // SİSTEM MESAJI RENDER (Sıralı akışa dahil edildi)
         if (msg.isSystem) {
             const sysWrapper = document.createElement("div");
             sysWrapper.className = "system-msg-wrapper";
@@ -533,7 +534,7 @@ function pushMessageToFirebase(text, sharedImg) {
         sharedImg: sharedImg,
         time: timeString,
         replyTo: activeReplyId ? activeReplyId : null,
-        orderTimestamp: Date.now() // Sıralama kriteri
+        orderTimestamp: Date.now()
     });
 }
 
@@ -543,7 +544,7 @@ function pushSystemMessage(text) {
         id: id,
         text: text,
         isSystem: true,
-        orderTimestamp: Date.now() // Sistem mesajı da akışa zamanıyla giriyor
+        orderTimestamp: Date.now()
     });
 }
 
