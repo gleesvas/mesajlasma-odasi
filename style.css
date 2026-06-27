@@ -13,15 +13,44 @@ body {
     height: 100%;
     overflow: hidden;
     position: relative;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* --- TEMA RENK DEĞİŞKENLERİ --- */
+body.light-mode {
+    --bg-main: #f3f4f6;
+    --bg-chat-box: #ffffff;
+    --bg-messages-area: #f9fafb;
+    --border-color: #e5e7eb;
+    --text-main: #1f2937;
+    --text-muted: #6b7280;
+    --bubble-other: #ffffff;
+    --text-other: #1f2937;
+    --bubble-me: #3b82f6;
+    --text-me: #ffffff;
+    --input-bg: #ffffff;
+}
+
+body.dark-mode {
+    --bg-main: #0f172a;
+    --bg-chat-box: #1e293b;
+    --bg-messages-area: #0f172a;
+    --border-color: #334155;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+    --bubble-other: #334155;
+    --text-other: #f1f5f9;
+    --bubble-me: #2563eb;
+    --text-me: #ffffff;
+    --input-bg: #1e293b;
 }
 
 body {
-    background-color: #f3f4f6;
-    color: #1f2937;
+    background-color: var(--bg-main);
+    color: var(--text-main);
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 0;
 }
 
 /* Ana Sohbet Kutusu */
@@ -30,7 +59,7 @@ body {
     max-width: 600px;
     height: 100vh;
     height: -webkit-fill-available;
-    background: #ffffff;
+    background: var(--bg-chat-box);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -41,24 +70,30 @@ body {
     .chat-container {
         height: 92vh;
         border-radius: 16px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
     }
 }
 
 /* Üst Başlık */
 .chat-header {
-    background-color: #ffffff;
-    padding: 12px 15px;
-    border-bottom: 1px solid #e5e7eb;
+    background-color: var(--bg-chat-box);
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     justify-content: space-between;
     align-items: center;
     z-index: 10;
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .chat-header h2 {
     font-size: 1.1rem;
-    color: #111827;
+    color: var(--text-main);
     display: flex;
     align-items: center;
     gap: 6px;
@@ -67,57 +102,81 @@ body {
 .header-right-area {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+}
+
+.header-action-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.header-action-btn:hover {
+    color: #3b82f6;
 }
 
 .header-user {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
 .header-user img {
-    width: 35px;
-    height: 35px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     object-fit: cover;
-    cursor: pointer;
     border: 2px solid #3b82f6;
 }
 
 .user-badge {
-    background-color: #f3f4f6;
-    color: #4b5563;
-    padding: 4px 10px;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    padding: 4px 8px;
     border-radius: 20px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    max-width: 100px;
+    max-width: 80px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* Çevrimiçi Sayaç Rozeti */
+/* Canlı Arama Kutusu Modülü */
+.search-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#search-input {
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-main);
+    color: var(--text-main);
+    font-size: 0.8rem;
+    outline: none;
+}
+
+/* Çevrimiçi Sayaç */
 .online-counter-badge {
     display: flex;
     align-items: center;
-    gap: 6px;
-    background-color: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    padding: 4px 10px;
+    gap: 5px;
+    background-color: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    padding: 4px 8px;
     border-radius: 16px;
     cursor: pointer;
-    transition: background 0.2s;
-}
-
-.online-counter-badge:hover {
-    background-color: #dcfce7;
 }
 
 .online-dot {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     background-color: #22c55e;
     border-radius: 50%;
     display: inline-block;
@@ -125,20 +184,20 @@ body {
 }
 
 #online-count-text {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
-    color: #166534;
+    color: #22c55e;
 }
 
 @keyframes pulse {
     0% {
         transform: scale(0.95);
-        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
     }
 
     70% {
         transform: scale(1);
-        box-shadow: 0 0 0 5px rgba(34, 197, 94, 0);
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0);
     }
 
     100% {
@@ -147,7 +206,7 @@ body {
     }
 }
 
-/* Mesaj Havuzu Alanı */
+/* Mesaj Havuzu */
 .chat-messages {
     flex: 1;
     padding: 15px;
@@ -155,10 +214,10 @@ body {
     display: flex;
     flex-direction: column;
     gap: 14px;
-    background-color: #f9fafb;
+    background-color: var(--bg-messages-area);
 }
 
-/* Esnek Mesaj Yapısı */
+/* Esnek Mesaj Balonu Yapısı */
 .msg-wrapper {
     display: flex;
     align-items: flex-end;
@@ -181,7 +240,6 @@ body {
     position: relative;
 }
 
-/* Sohbet İçi Paylaşılan Resim Stili */
 .shared-chat-img {
     max-width: 100%;
     max-height: 180px;
@@ -192,56 +250,70 @@ body {
     display: block;
 }
 
-.msg-meta {
-    font-size: 0.7rem;
-    color: #9ca3af;
+.msg-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
     margin-top: 3px;
     padding: 0 4px;
 }
 
-/* Yanıtlanan Mesaj */
+.msg-meta {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+/* Mavi Tik ve Normal Tik İkonları */
+.tick-icon {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.tick-icon.read {
+    color: #3b82f6;
+    /* Mavi Tik */
+}
+
+/* Yanıtlanan Mesaj Balon İçi */
 .msg-replied-inside {
-    background: rgba(0, 0, 0, 0.06);
+    background: rgba(0, 0, 0, 0.08);
     border-left: 3px solid #3b82f6;
     padding: 4px 8px;
     border-radius: 4px;
     margin-bottom: 5px;
     font-size: 0.8rem;
-    color: #4b5563;
+    color: var(--text-main);
 }
 
-.msg-wrapper.me .msg-replied-inside {
-    border-left-color: #ffffff;
-    background: rgba(255, 255, 255, 0.2);
-    color: #f3f4f6;
+.dark-mode .msg-replied-inside {
+    background: rgba(255, 255, 255, 0.08);
 }
 
-/* Başkasının Mesajı (Sol) */
+/* Sol Taraf (Başkasının) */
 .msg-wrapper.other {
     align-self: flex-start;
     flex-direction: row;
 }
 
 .msg-wrapper.other .msg-bubble {
-    background-color: #ffffff;
-    color: #1f2937;
-    border: 1px solid #e5e7eb;
+    background-color: var(--bubble-other);
+    color: var(--text-other);
+    border: 1px solid var(--border-color);
     border-top-left-radius: 2px;
 }
 
-/* Benim Mesajım (Sağ) */
+/* Sağ Taraf (Benim) */
 .msg-wrapper.me {
     align-self: flex-end;
     flex-direction: row-reverse;
 }
 
 .msg-wrapper.me .msg-bubble {
-    background-color: #3b82f6;
-    color: #ffffff;
+    background-color: var(--bubble-me);
+    color: var(--text-me);
     border-top-right-radius: 2px;
 }
 
-/* Profil Resmi Stili */
 .msg-avatar-img {
     width: 35px;
     height: 35px;
@@ -249,15 +321,14 @@ body {
     object-fit: cover;
     cursor: pointer;
     flex-shrink: 0;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
-/* 3 Nokta Aksiyon Menüsü Tetikleyicisi */
+/* 3 Nokta Aksiyon Menüsü */
 .msg-options-trigger {
     opacity: 0;
     background: none;
     border: none;
-    color: #9ca3af;
+    color: var(--text-muted);
     cursor: pointer;
     font-size: 1rem;
     padding: 5px;
@@ -275,10 +346,10 @@ body {
 
 .action-menu {
     position: absolute;
-    background: white;
-    border: 1px solid #e5e7eb;
+    background: var(--bg-chat-box);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 100;
     display: flex;
     flex-direction: column;
@@ -301,19 +372,25 @@ body {
     font-size: 0.85rem;
     text-align: left;
     cursor: pointer;
-    color: #374151;
+    color: var(--text-main);
     white-space: nowrap;
 }
 
 .action-menu button:hover {
-    background-color: #f3f4f6;
+    background-color: var(--bg-main);
 }
 
 .action-menu button.delete-btn {
     color: #ef4444;
 }
 
-/* Reaksiyon (Tepki) Paneli Yapıları */
+.action-menu button.ban-btn {
+    color: #f97316;
+    font-weight: bold;
+    border-top: 1px dashed var(--border-color);
+}
+
+/* Reaksiyon Satırı */
 .reactions-row-container {
     display: flex;
     gap: 4px;
@@ -333,9 +410,8 @@ body {
 }
 
 .reaction-pill {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    background: var(--bg-chat-box);
+    border: 1px solid var(--border-color);
     padding: 2px 6px;
     border-radius: 12px;
     font-size: 0.75rem;
@@ -345,38 +421,32 @@ body {
     gap: 3px;
 }
 
-.reaction-pill:hover {
-    background: #f3f4f6;
-}
-
 .reaction-count {
-    color: #6b7280;
+    color: var(--text-muted);
     font-weight: 600;
 }
 
-/* Reaksiyon Seçim Menüsü (3 Nokta Menüsü içindeki mini bar gibi veya direkt menü içi) */
 .reaction-selector-bar {
     display: flex;
     gap: 6px;
     padding: 6px 10px;
-    background: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
+    background: var(--bg-main);
+    border-bottom: 1px solid var(--border-color);
 }
 
 .reaction-selector-bar span {
     font-size: 1.1rem;
     cursor: pointer;
-    transition: transform 0.1s;
 }
 
 .reaction-selector-bar span:hover {
-    transform: scale(1.3);
+    transform: scale(1.25);
 }
 
-/* Yanıtlama Önizleme Barı */
+/* Yanıtlama Önizleme Çubuğu */
 .reply-preview-bar {
-    background-color: #f3f4f6;
-    border-top: 1px solid #e5e7eb;
+    background-color: var(--bg-main);
+    border-top: 1px solid var(--border-color);
     border-left: 4px solid #3b82f6;
     padding: 8px 15px;
     display: flex;
@@ -391,32 +461,32 @@ body {
 
 .reply-info p {
     font-size: 0.85rem;
-    color: #6b7280;
+    color: var(--text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 320px;
+    max-width: 300px;
 }
 
 .reply-preview-bar button {
     background: none;
     border: none;
-    color: #9ca3af;
+    color: var(--text-muted);
     cursor: pointer;
 }
 
-/* "Yazıyor..." Canlı Gösterge Barı */
+/* Yazıyor Göstergesi */
 .typing-indicator-bar {
     padding: 6px 15px;
-    background-color: #f9fafb;
+    background-color: var(--bg-messages-area);
     display: flex;
     align-items: center;
     gap: 8px;
-    border-top: 1px solid #f3f4f6;
+    border-top: 1px solid var(--border-color);
 }
 
 .typing-text {
-    color: #6b7280;
+    color: var(--text-muted);
     font-style: italic;
     font-size: 0.8rem;
 }
@@ -430,7 +500,7 @@ body {
 .typing-dots span {
     width: 5px;
     height: 5px;
-    background: #9ca3af;
+    background: var(--text-muted);
     border-radius: 50%;
     display: inline-block;
     animation: bounce 1.4s infinite ease-in-out both;
@@ -457,11 +527,11 @@ body {
     }
 }
 
-/* Alt Mesaj Yazma Giriş Alanı */
+/* Alt Giriş Alanı */
 .chat-input-area {
     padding: 10px 12px;
-    background: #ffffff;
-    border-top: 1px solid #e5e7eb;
+    background: var(--bg-chat-box);
+    border-top: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -470,13 +540,12 @@ body {
 .btn-chat-action {
     background: none;
     border: none;
-    color: #6b7280;
+    color: var(--text-muted);
     font-size: 1.2rem;
     cursor: pointer;
     padding: 4px;
     display: flex;
     align-items: center;
-    justify-content: center;
 }
 
 .btn-chat-action:hover {
@@ -486,7 +555,9 @@ body {
 .chat-input-area input[type="text"] {
     flex: 1;
     padding: 10px 16px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--border-color);
+    background: var(--bg-main);
+    color: var(--text-main);
     border-radius: 24px;
     font-size: 0.95rem;
     outline: none;
@@ -506,7 +577,7 @@ body {
     flex-shrink: 0;
 }
 
-/* Emoji Pop-up Listesi */
+/* Emoji Listesi */
 .emoji-dropdown-container {
     position: relative;
     display: flex;
@@ -516,9 +587,9 @@ body {
     position: absolute;
     bottom: 45px;
     left: -40px;
-    background: white;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: var(--bg-chat-box);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
     border-radius: 8px;
     padding: 8px;
     display: grid;
@@ -532,14 +603,14 @@ body {
     cursor: pointer;
 }
 
-/* Profil Fotoğrafı Seçme & Pop-up Modalları */
+/* Pop-up Modalları */
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.7);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -547,19 +618,22 @@ body {
 }
 
 .modal-content {
-    background: white;
+    background: var(--bg-chat-box);
     padding: 25px;
     border-radius: 16px;
     width: 90%;
     max-width: 360px;
     text-align: center;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    color: var(--text-main);
 }
 
 .modal-content input[type="text"] {
     width: 100%;
     padding: 12px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--border-color);
+    background: var(--bg-main);
+    color: var(--text-main);
     border-radius: 8px;
     margin-bottom: 15px;
     outline: none;
@@ -574,12 +648,8 @@ body {
     margin-bottom: 20px;
 }
 
-#profile-file-input {
-    display: none;
-}
-
 .custom-file-upload {
-    background: #f3f4f6;
+    background: var(--bg-main);
     border: 1px dashed #3b82f6;
     color: #3b82f6;
     padding: 8px 16px;
@@ -594,7 +664,7 @@ body {
     height: 80px;
     border-radius: 50%;
     object-fit: cover;
-    border: 2px solid #e5e7eb;
+    border: 2px solid var(--border-color);
 }
 
 #btn-login {
@@ -608,7 +678,7 @@ body {
     cursor: pointer;
 }
 
-/* Aktif Kullanıcı Listesi Özel Tasarımı */
+/* Aktif Kullanıcı Listesi */
 .users-list-content {
     max-height: 400px;
     display: flex;
@@ -629,9 +699,9 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px;
+    padding: 8px;
     border-radius: 8px;
-    background: #f9fafb;
+    background: var(--bg-main);
 }
 
 .online-user-row img {
@@ -644,7 +714,7 @@ body {
 .online-user-row span {
     font-size: 0.9rem;
     font-weight: 600;
-    color: #374151;
+    color: var(--text-main);
 }
 
 .close-modal-btn {
@@ -658,14 +728,14 @@ body {
     width: 100%;
 }
 
-/* Fotoğrafı Büyük Gösterme Alanı (Lightbox) */
+/* Lightbox */
 .image-viewer-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.9);
     z-index: 2000;
     display: flex;
     justify-content: center;
@@ -674,16 +744,15 @@ body {
 }
 
 .image-viewer-overlay img {
-    max-width: 90%;
-    max-height: 80%;
+    max-width: 95%;
+    max-height: 85%;
     border-radius: 12px;
-    box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
     animation: zoomIn 0.2s ease-out;
 }
 
 @keyframes zoomIn {
     from {
-        transform: scale(0.85);
+        transform: scale(0.9);
         opacity: 0;
     }
 
