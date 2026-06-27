@@ -41,7 +41,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// Gelişmiş Özellik 1: Görsel Sıkıştırma Motoru (Canvas Tabanlı Hızlandırıcı)
+// Görsel Sıkıştırma Motoru
 function compressImage(base64Str, maxWidth = 600, maxHeight = 600) {
     return new Promise((resolve) => {
         const img = new Image();
@@ -65,10 +65,9 @@ function compressImage(base64Str, maxWidth = 600, maxHeight = 600) {
             const canvas = document.createElement('canvas');
             canvas.width = width;
             canvas.height = height;
-            const ctx = canvas.getContext('2webgl') || canvas.getContext('2d');
+            const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
-            // Kaliteyi %60'a düşürerek kaliteden ödün vermeden hızı uçuruyoruz
             const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
             resolve(compressedBase64);
         };
@@ -146,7 +145,6 @@ function previewUploadedFile(event) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async (e) => {
-        // Profil fotoğrafını anında optimize edip küçültüyoruz
         currentUserImgB64 = await compressImage(e.target.result, 150, 150);
         document.getElementById("modal-avatar-preview").src = currentUserImgB64;
     };
@@ -177,19 +175,24 @@ function saveProfile() {
 
     document.getElementById("auth-modal").style.display = "none";
 
-    // Gelişmiş Özellik 3: Hoş Geldin Sistem Mesajı Gönderimi
     pushSystemMessage(`${currentUser} sohbete katıldı 👋`);
     checkIfBanned(userUniqueId);
 }
 
-// Çevrimiçi Takibi ve Ayrıldı Ayrışması
+// Çevrimiçi Takibi (Hata Düzeltildi)
 function announceOnlinePresence() {
     if (!userUniqueId) return;
     const userStatusRef = database.ref('online_users_v5/' + userUniqueId);
 
-    // Gelişmiş Özellik 3: Kullanıcı sekmesini kapattığında Sistem Ayrıldı mesajı düşsün
-    userStatusRef.onDisconnect().remove(() => {
-        pushSystemMessage(`${currentUser} odadan ayrıldı 🚪`);
+    // onDisconnect kurulumunu .set işleminden bağımsız hale getirdik, böylece ilk girişte tetiklenmiyor
+    userStatusRef.onDisconnect().remove();
+
+    // Gerçek ayrılma mesajı için sadece bağlantı koptuğunda çalışacak ayrı bir referans
+    database.ref('messages_v5/sys_disconnect_' + userUniqueId).onDisconnect().set({
+        id: 'sys_disconnect_' + userUniqueId,
+        text: `${currentUser} odadan ayrıldı 🚪`,
+        isSystem: true,
+        orderTimestamp: firebase.database.ServerValue.TIMESTAMP // Ayrıldığı anın zaman damgası
     });
 
     userStatusRef.set({
@@ -259,13 +262,16 @@ function markMessagesAsRead(messagesList) {
     });
 }
 
-// Mesajları Yükleme
+// Mesajları Yükleme (Sıralama Eklendi)
 let globalMessages = {};
 function loadMessages() {
-    database.ref('messages_v5').limitToLast(50).on('value', (snapshot) => {
+    // orderTimestamp parametresine göre kronolojik sıralayarak çekiyoruz
+    database.ref('messages_v5').orderByChild('orderTimestamp').limitToLast(50).on('value', (snapshot) => {
         const data = snapshot.val();
         globalMessages = data ? data : {};
-        const messagesList = Object.values(globalMessages);
+
+        // Firebase orderBy veri çekerken obje sıralamasını bozabileceği için listeyi manuel olarak zaman damgasına göre sıralıyoruz
+        const messagesList = Object.values(globalMessages).sort((a, b) => a.orderTimestamp - b.orderTimestamp);
 
         markMessagesAsRead(messagesList);
 
@@ -291,24 +297,25 @@ function toggleSearchBox() {
         input.style.display = "none";
         input.value = "";
         searchQuery = "";
-        renderMessages(Object.values(globalMessages));
+        loadMessages();
     }
 }
 
 function filterMessages() {
     searchQuery = document.getElementById("search-input").value.toLowerCase().trim();
-    renderMessages(Object.values(globalMessages));
+    const filtered = Object.values(globalMessages)
+        .filter(msg => searchQuery === "" || (msg.text && msg.text.toLowerCase().includes(searchQuery)))
+        .sort((a, b) => a.orderTimestamp - b.orderTimestamp);
+    renderMessages(filtered);
 }
 
-// Mesaj Ekrana Çizme (Render) ve Swipe To Reply Entegrasyonu
+// Mesaj Ekrana Çizme
 function renderMessages(messagesList) {
     const chatMessagesDiv = document.getElementById("chat-messages");
     chatMessagesDiv.innerHTML = "";
 
     messagesList.forEach(msg => {
-        if (searchQuery !== "" && msg.text && !msg.text.toLowerCase().includes(searchQuery)) return;
-
-        // EĞER SİSTEM MESAJIYSA FARKLI RENDER ET
+        // SİSTEM MESAJI RENDER (Sıralı akışa dahil edildi)
         if (msg.isSystem) {
             const sysWrapper = document.createElement("div");
             sysWrapper.className = "system-msg-wrapper";
@@ -323,24 +330,23 @@ function renderMessages(messagesList) {
         wrapper.className = isMe ? "msg-wrapper me" : "msg-wrapper other";
         wrapper.id = `msg-${msg.id}`;
 
-        // Gelişmiş Özellik 2: Swipe To Reply (Sürükleyerek Yanıtla) Dokunmatik Motoru
+        // Swipe To Reply Sürükleme Motoru
         let startX = 0;
         wrapper.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
         wrapper.addEventListener('touchmove', (e) => {
             let moveX = e.touches[0].clientX - startX;
-            if (moveX > 0 && moveX < 80) { // Sadece sağa kaydırma
+            if (moveX > 0 && moveX < 80) {
                 wrapper.style.transform = `translateX(${moveX}px)`;
             }
         }, { passive: true });
         wrapper.addEventListener('touchend', (e) => {
             let endX = e.changedTouches[0].clientX;
-            if (endX - startX > 60) { // 60px'den fazla kaydıysa yanıtla
+            if (endX - startX > 60) {
                 startReply(msg.id, msg.sender, msg.text || "Fotoğraf");
             }
             wrapper.style.transform = "translateX(0px)";
         });
 
-        // Masaüstü fare ile sürükleme simülasyonu
         wrapper.addEventListener('mousedown', (e) => {
             startX = e.clientX;
             const onMouseMove = (ev) => {
@@ -490,13 +496,12 @@ function toggleReaction(msgId, emoji) {
     ref.get().then(snap => snap.exists() && snap.val() === emoji ? ref.remove() : ref.set(emoji));
 }
 
-// Gelişmiş Mesaj ve Optimize Medya Gönderimi
+// Mesaj Gönderme
 function sendMediaMessage(event) {
     const file = event.target.files[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = async (e) => {
-        // Gönderilen sohbet fotoğrafını anında sıkıştırıp öyle yüklüyoruz (Hızın anahtarı)
         const optimizedImg = await compressImage(e.target.result, 600, 600);
         pushMessageToFirebase("", optimizedImg);
     };
@@ -515,7 +520,7 @@ function sendMessage() {
 }
 
 function pushMessageToFirebase(text, sharedImg) {
-    const id = Date.now().toString();
+    const id = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
     const now = new Date();
     const timeString = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
 
@@ -527,16 +532,18 @@ function pushMessageToFirebase(text, sharedImg) {
         text: text,
         sharedImg: sharedImg,
         time: timeString,
-        replyTo: activeReplyId ? activeReplyId : null
+        replyTo: activeReplyId ? activeReplyId : null,
+        orderTimestamp: Date.now() // Sıralama kriteri
     });
 }
 
 function pushSystemMessage(text) {
-    const id = "sys_" + Date.now();
+    const id = "sys_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
     database.ref('messages_v5/' + id).set({
         id: id,
         text: text,
-        isSystem: true
+        isSystem: true,
+        orderTimestamp: Date.now() // Sistem mesajı da akışa zamanıyla giriyor
     });
 }
 
