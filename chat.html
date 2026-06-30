@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ultra Chat Platformu v5.5</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="light-mode">
+
+    <div id="image-viewer-modal" class="image-viewer-overlay" style="display: none;" onclick="closeImageViewer()">
+        <img id="viewer-img" src="" alt="Büyük Görsel">
+    </div>
+
+    <div class="main-interface-wrapper">
+
+        <div class="chat-container">
+            <div class="chat-header">
+                <div class="header-left">
+                    <button class="header-action-btn" onclick="leaveRoom()" title="Odadan Çık"><i
+                            class="fa-solid fa-arrow-left"></i> Çık</button>
+                    <h2 id="current-room-title"><i class="fa-solid fa-hashtag" style="color: #3b82f6;"></i>
+                        Yükleniyor...</h2>
+                    <div class="search-container">
+                        <button class="header-action-btn" onclick="toggleSearchBox()"><i
+                                class="fa-solid fa-magnifying-glass"></i></button>
+                        <input type="text" id="search-input" placeholder="Mesajlarda ara..." oninput="filterMessages()"
+                            style="display: none;">
+                    </div>
+                </div>
+
+                <div class="header-right-area">
+                    <button class="header-action-btn" id="theme-toggle-btn" onclick="toggleTheme()">
+                        <i class="fa-solid fa-moon"></i>
+                    </button>
+                    <div class="header-user">
+                        <img id="user-avatar-img" src="https://via.placeholder.com/150?text=👤" alt="Profilim"
+                            onclick="viewProfileImage(this.src)">
+                        <span id="user-badge" class="user-badge">...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="chat-messages" class="chat-messages"></div>
+
+            <div id="typing-indicator-bar" class="typing-indicator-bar" style="display: none;">
+                <div class="typing-dots"><span></span><span></span><span></span></div>
+                <small id="typing-text">Biri yazıyor...</small>
+            </div>
+
+            <div id="reply-preview-bar" class="reply-preview-bar" style="display: none;">
+                <div class="reply-info">
+                    <small id="reply-target-user">Yanıtlanyor...</small>
+                    <p id="reply-target-text">...</p>
+                </div>
+                <button onclick="cancelReply()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="chat-input-area">
+                <label for="chat-media-input" class="btn-chat-action"><i class="fa-solid fa-paperclip"></i></label>
+                <input type="file" id="chat-media-input" accept="image/*" onchange="sendMediaMessage(event)"
+                    style="display: none;">
+
+                <div class="emoji-dropdown-container">
+                    <button id="btn-emoji" class="btn-chat-action" onclick="toggleEmojiMenu()"><i
+                            class="fa-regular fa-face-smile"></i></button>
+                    <div id="emoji-menu" class="emoji-menu" style="display: none;">
+                        <span onclick="appendEmoji('😊')">😊</span><span onclick="appendEmoji('😂')">😂</span><span
+                            onclick="appendEmoji('😍')">😍</span>
+                        <span onclick="appendEmoji('👍')">👍</span><span onclick="appendEmoji('🔥')">🔥</span><span
+                            onclick="appendEmoji('👏')">👏</span>
+                        <span onclick="appendEmoji('🎉')">🎉</span><span onclick="appendEmoji('❤️')">❤️</span><span
+                            onclick="appendEmoji('😎')">😎</span>
+                    </div>
+                </div>
+
+                <input type="text" id="message-input" placeholder="Mesajınızı yazın..." maxlength="250"
+                    autocomplete="off" oninput="handleTypingStatus()">
+                <button id="btn-send" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+        </div>
+
+        <div class="members-sidebar">
+            <div class="sidebar-header">
+                <h3><i class="fa-solid fa-users"></i> Odadaki Üyeler</h3>
+            </div>
+            <div id="room-members-list" class="members-list">
+            </div>
+        </div>
+
+    </div>
+
+    <audio id="notification-sound" src="https://assets.mixkit.co/active_storage/sfx/2357/2357-84.wav"
+        preload="auto"></audio>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

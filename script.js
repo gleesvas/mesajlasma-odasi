@@ -6,30 +6,30 @@ const firebaseConfig = {
     projectId: "yurt-paneli",
     storageBucket: "yurt-paneli.firebasestorage.app",
     messagingSenderId: "779236033369",
-    appId: "1:779236033369:web:9e3eccdb03e8fa9ae78248",
-    measurementId: "G-H48TZ0E9S2"
+    appId: "1:779236033369:web:9e3eccdb03e8fa9ae78248"
 };
 
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
+if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
 const database = firebase.database();
 
-// Global Değişkenler
+// Global Değişkenler ve Oda Yapısı
+let currentRoomId = localStorage.getItem("current_room_id") || "";
+let roomCreatorUid = ""; // Odayı oluşturan kişinin UID'si
 let currentUser = "";
 let currentUserImgB64 = "https://via.placeholder.com/150?text=👤";
-let isAdmin = false;
 let userUniqueId = "";
 let activeReplyId = null;
 let typingTimeout = null;
 let lastMessageCount = 0;
 let searchQuery = "";
+let allUsersPresences = {}; // Küresel çevrimiçi haritası
 
 document.addEventListener("DOMContentLoaded", () => {
+    if (!currentRoomId) { window.location.href = "index.html"; return; }
     loadSavedTheme();
     checkUserIdentity();
     listenTypingStatus();
-    trackOnlinePresence();
+    trackRoomMembersAndPresence();
 
     document.getElementById("message-input").addEventListener("keypress", (e) => {
         if (e.key === "Enter") sendMessage();
@@ -41,44 +41,34 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// Görsel Sıkıştırma Motoru
 function compressImage(base64Str, maxWidth = 600, maxHeight = 600) {
     return new Promise((resolve) => {
-        const img = new Image();
-        img.src = base64Str;
+        const img = new Image(); img.src = base64Str;
         img.onload = () => {
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-                if (width > maxWidth) {
-                    height *= maxWidth / width;
-                    width = maxWidth;
-                }
-            } else {
-                if (height > maxHeight) {
-                    width *= maxHeight / height;
-                    height = maxHeight;
-                }
-            }
-
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
-            resolve(compressedBase64);
+            let width = img.width; let height = img.height;
+            if (width > height) { if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; } }
+            else { if (height > maxHeight) { width *= maxHeight / height; height = maxHeight; } }
+            const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
         };
     });
+}
+
+// Odadan Çıkış (Lobiye Dönüş)
+function leaveRoom() {
+    if (userUniqueId && currentRoomId) {
+        database.ref(`rooms_v5/${currentRoomId}/members/${userUniqueId}`).remove();
+        database.ref(`rooms_v5/${currentRoomId}/presence/${userUniqueId}`).remove();
+    }
+    localStorage.removeItem("current_room_id");
+    window.location.href = "index.html";
 }
 
 // Tema Yönetimi
 function toggleTheme() {
     const body = document.body;
     const themeBtn = document.getElementById("theme-toggle-btn");
-
     if (body.classList.contains("light-mode")) {
         body.classList.replace("light-mode", "dark-mode");
         themeBtn.innerHTML = `<i class="fa-solid fa-sun" style="color: #f59e0b;"></i>`;
@@ -102,143 +92,131 @@ function loadSavedTheme() {
     }
 }
 
-// Kimlik ve Ban Kontrolleri
+// Kimlik ve Oda Detay Kontrolü
 function checkUserIdentity() {
     const savedUser = localStorage.getItem("chat_user_name_v5");
     const savedImg = localStorage.getItem("chat_user_img_v5");
     const savedUid = localStorage.getItem("chat_user_uid_v5");
-    const savedIsAdmin = localStorage.getItem("chat_user_is_admin_v5");
 
-    if (savedUser && savedImg && savedUid) {
-        currentUser = savedUser;
-        currentUserImgB64 = savedImg;
-        userUniqueId = savedUid;
-        isAdmin = (savedIsAdmin === "true");
+    if (!savedUser || !savedImg || !savedUid) { window.location.href = "index.html"; return; }
 
-        checkIfBanned(userUniqueId);
-    } else {
-        document.getElementById("auth-modal").style.display = "flex";
-    }
-}
+    currentUser = savedUser;
+    currentUserImgB64 = savedImg;
+    userUniqueId = savedUid;
 
-function checkIfBanned(uid) {
-    database.ref('banned_v5/' + uid).get().then((snapshot) => {
-        if (snapshot.exists()) {
-            alert("Bu sohbet odasından kalıcı olarak banlandınız!");
-            localStorage.clear();
-            window.location.reload();
-        } else {
-            document.getElementById("auth-modal").style.display = "none";
-            document.getElementById("user-badge").innerText = currentUser;
-            document.getElementById("user-avatar-img").src = currentUserImgB64;
-            announceOnlinePresence();
-            loadMessages();
+    // Oda Bilgilerini ve Kurucusunu Çekme
+    database.ref('rooms_v5/' + currentRoomId).get().then((snapshot) => {
+        if (!snapshot.exists()) {
+            alert("Bu oda artık mevcut değil!");
+            window.location.href = "index.html";
+            return;
         }
-    }).catch(() => {
-        document.getElementById("auth-modal").style.display = "none";
-        loadMessages();
+        const roomData = snapshot.val();
+        roomCreatorUid = roomData.creatorUid;
+        document.getElementById("current-room-title").innerHTML = `<i class="fa-solid fa-hashtag" style="color: #3b82f6;"></i> ${roomData.name}`;
+
+        checkIfBannedFromRoom();
     });
 }
 
-function previewUploadedFile(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-        currentUserImgB64 = await compressImage(e.target.result, 150, 150);
-        document.getElementById("modal-avatar-preview").src = currentUserImgB64;
-    };
-    reader.readAsDataURL(file);
+function checkIfBannedFromRoom() {
+    database.ref(`rooms_v5/${currentRoomId}/banned/${userUniqueId}`).get().then((snapshot) => {
+        if (snapshot.exists()) {
+            alert("Bu odadan kurucu tarafından atıldınız (banlandınız)!");
+            window.location.href = "index.html";
+        } else {
+            document.getElementById("user-badge").innerText = currentUser;
+            document.getElementById("user-avatar-img").src = currentUserImgB64;
+            announceRoomPresence();
+
+            if (localStorage.getItem("just_logged_in") === "true") {
+                pushSystemMessage(`${currentUser} sohbete katıldı 👋`);
+                localStorage.removeItem("just_logged_in");
+            }
+            loadMessages();
+        }
+    });
 }
 
-function saveProfile() {
-    let nameInput = document.getElementById("username-input").value.trim();
-    if (nameInput === "") {
-        alert("Lütfen geçerli bir isim giriniz!");
-        return;
-    }
+// Odaya Özel Çevrimiçi ve Üye Listesi Yönetimi
+function announceRoomPresence() {
+    // Üye kaydı (Odadaki kalıcı üye listesi)
+    database.ref(`rooms_v5/${currentRoomId}/members/${userUniqueId}`).set({
+        uid: userUniqueId, name: currentUser, img: currentUserImgB64
+    });
 
-    if (nameInput === "admin123") {
-        currentUser = "Sistem Yöneticisi";
-        isAdmin = true;
-    } else {
-        currentUser = nameInput;
-        isAdmin = false;
-    }
+    // Anlık aktiflik kaydı
+    const presenceRef = database.ref(`rooms_v5/${currentRoomId}/presence/${userUniqueId}`);
+    presenceRef.onDisconnect().remove();
+    presenceRef.set(true);
 
-    userUniqueId = "user_" + Math.random().toString(36).substring(2, 11) + "_" + Date.now();
-
-    localStorage.setItem("chat_user_name_v5", currentUser);
-    localStorage.setItem("chat_user_img_v5", currentUserImgB64);
-    localStorage.setItem("chat_user_uid_v5", userUniqueId);
-    localStorage.setItem("chat_user_is_admin_v5", isAdmin ? "true" : "false");
-
-    document.getElementById("auth-modal").style.display = "none";
-
-    pushSystemMessage(`${currentUser} sohbete katıldı 👋`);
-    checkIfBanned(userUniqueId);
-}
-
-// Çevrimiçi Takibi
-function announceOnlinePresence() {
-    if (!userUniqueId) return;
-    const userStatusRef = database.ref('online_users_v5/' + userUniqueId);
-
-    userStatusRef.onDisconnect().remove();
-
-    // Ayrılma mesajının zaman damgasını milisaniye cinsinden sayısal olarak tutuyoruz
-    database.ref('messages_v5/sys_disconnect_' + userUniqueId).onDisconnect().set({
+    // Odadan çıkış onDisconnect mekanizması
+    database.ref(`rooms_v5/${currentRoomId}/messages/sys_disconnect_${userUniqueId}`).onDisconnect().set({
         id: 'sys_disconnect_' + userUniqueId,
         text: `${currentUser} odadan ayrıldı 🚪`,
         isSystem: true,
-        orderTimestamp: Date.now() + 50 // Bağlantı koptuğu anın zaman damgası
-    });
-
-    userStatusRef.set({
-        uid: userUniqueId,
-        name: currentUser,
-        img: currentUserImgB64,
-        isAdmin: isAdmin
+        orderTimestamp: Date.now() + 50
     });
 }
 
-let activeUsersData = {};
-function trackOnlinePresence() {
-    database.ref('online_users_v5').on('value', (snapshot) => {
-        activeUsersData = snapshot.val() || {};
-        const count = Object.keys(activeUsersData).length;
-        document.getElementById("online-count-text").innerText = `${count} Çevrimiçi`;
+function trackRoomMembersAndPresence() {
+    // Odadaki anlık aktifleri dinle
+    database.ref(`rooms_v5/${currentRoomId}/presence`).on('value', (snapshot) => {
+        allUsersPresences = snapshot.val() || {};
+        renderSidebarMembers();
+    });
+
+    // Odadaki toplam kayıtlı üyeleri dinle
+    database.ref(`rooms_v5/${currentRoomId}/members`).on('value', (snapshot) => {
+        const membersData = snapshot.val() || {};
+        const container = document.getElementById("room-members-list");
+        container.innerHTML = "";
+
+        Object.values(membersData).forEach(member => {
+            const isOnline = allUsersPresences[member.uid] ? true : false;
+            const isCreator = member.uid === roomCreatorUid;
+
+            const card = document.createElement("div");
+            card.className = "member-card";
+
+            card.innerHTML = `
+                <div class="member-avatar-wrapper ${isOnline ? 'online' : ''}">
+                    <img src="${member.img}">
+                </div>
+                <div class="member-name-info">
+                    <span>${member.name}</span>
+                    ${isCreator ? '<i class="fa-solid fa-crown crown-icon" title="Oda Kurucusu"></i>' : ''}
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    });
+
+    // Kurucu tarafından atılma kontrolünü anlık dinle
+    database.ref(`rooms_v5/${currentRoomId}/banned/${userUniqueId}`).on('value', (snapshot) => {
+        if (snapshot.exists()) {
+            alert("Bu odadan kurucu tarafından atıldınız!");
+            window.location.href = "index.html";
+        }
     });
 }
 
-function toggleOnlineUsersModal(show) {
-    const modal = document.getElementById("online-users-modal");
-    if (!show) { modal.style.display = "none"; return; }
-    const container = document.getElementById("online-users-container");
-    container.innerHTML = "";
-
-    Object.values(activeUsersData).forEach(user => {
-        const row = document.createElement("div");
-        row.className = "online-user-row";
-        const roleText = user.isAdmin ? " [Admin]" : "";
-        row.innerHTML = `<img src="${user.img}"><span>${user.name}${roleText}</span>`;
-        container.appendChild(row);
-    });
-    modal.style.display = "flex";
+function renderSidebarMembers() {
+    // Aktiflik değiştikçe listeyi tetikler (On/Off görsel senkronizasyonu için)
 }
 
-// "Yazıyor..." Durumu
+// "Yazıyor..." Durumu (Odaya Özel)
 function handleTypingStatus() {
     if (!userUniqueId) return;
-    database.ref('typing_v5/' + userUniqueId).set(currentUser);
+    database.ref(`rooms_v5/${currentRoomId}/typing/${userUniqueId}`).set(currentUser);
     clearTimeout(typingTimeout);
     typingTimeout = setTimeout(() => {
-        database.ref('typing_v5/' + userUniqueId).remove();
+        database.ref(`rooms_v5/${currentRoomId}/typing/${userUniqueId}`).remove();
     }, 2000);
 }
 
 function listenTypingStatus() {
-    database.ref('typing_v5').on('value', (snapshot) => {
+    database.ref(`rooms_v5/${currentRoomId}/typing`).on('value', (snapshot) => {
         const data = snapshot.val() || {};
         const typingList = [];
         Object.entries(data).forEach(([uid, name]) => {
@@ -252,30 +230,16 @@ function listenTypingStatus() {
     });
 }
 
-// Okundu Bilgisi
-function markMessagesAsRead(messagesList) {
-    messagesList.forEach(msg => {
-        if (msg.senderUid && msg.senderUid !== userUniqueId && (!msg.reads || !msg.reads[userUniqueId])) {
-            database.ref(`messages_v5/${msg.id}/reads/${userUniqueId}`).set(true);
-        }
-    });
-}
-
-// Mesajları Yükleme (İndeks Bağımsız JavaScript Sıralama Garantisi)
+// Mesajları Yükleme (Odaya Özel)
 let globalMessages = {};
 function loadMessages() {
-    database.ref('messages_v5').limitToLast(50).on('value', (snapshot) => {
+    database.ref(`rooms_v5/${currentRoomId}/messages`).limitToLast(50).on('value', (snapshot) => {
         const data = snapshot.val();
         globalMessages = data ? data : {};
 
-        // HATA ÇÖZÜMÜ: Firebase indeks ayarı açık olmasa bile JavaScript ile kesin kronolojik sıralama yapıyoruz
         const messagesList = Object.values(globalMessages).sort((a, b) => {
-            const timeA = a.orderTimestamp || 0;
-            const timeB = b.orderTimestamp || 0;
-            return timeA - timeB;
+            return (a.orderTimestamp || 0) - (b.orderTimestamp || 0);
         });
-
-        markMessagesAsRead(messagesList);
 
         if (messagesList.length > lastMessageCount && lastMessageCount > 0) {
             const lastMsg = messagesList[messagesList.length - 1];
@@ -284,37 +248,16 @@ function loadMessages() {
             }
         }
         lastMessageCount = messagesList.length;
-
         renderMessages(messagesList);
     });
 }
 
-// Sohbet İçi Arama
-function toggleSearchBox() {
-    const input = document.getElementById("search-input");
-    if (input.style.display === "none") {
-        input.style.display = "inline-block";
-        input.focus();
-    } else {
-        input.style.display = "none";
-        input.value = "";
-        searchQuery = "";
-        loadMessages();
-    }
-}
-
-function filterMessages() {
-    searchQuery = document.getElementById("search-input").value.toLowerCase().trim();
-    const filtered = Object.values(globalMessages)
-        .filter(msg => searchQuery === "" || (msg.text && msg.text.toLowerCase().includes(searchQuery)))
-        .sort((a, b) => (a.orderTimestamp || 0) - (b.orderTimestamp || 0));
-    renderMessages(filtered);
-}
-
-// Mesaj Ekrana Çizme
+// Mesaj Ekrana Çizme (Kurucu Yetkileri Entegre Edildi)
 function renderMessages(messagesList) {
     const chatMessagesDiv = document.getElementById("chat-messages");
     chatMessagesDiv.innerHTML = "";
+
+    const isAmIOwner = userUniqueId === roomCreatorUid; // Ben bu odanın kurucusu muyum?
 
     messagesList.forEach(msg => {
         if (msg.isSystem) {
@@ -327,73 +270,21 @@ function renderMessages(messagesList) {
 
         const wrapper = document.createElement("div");
         const isMe = msg.senderUid === userUniqueId;
-
         wrapper.className = isMe ? "msg-wrapper me" : "msg-wrapper other";
         wrapper.id = `msg-${msg.id}`;
-
-        // Swipe To Reply Sürükleme Motoru
-        let startX = 0;
-        wrapper.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
-        wrapper.addEventListener('touchmove', (e) => {
-            let moveX = e.touches[0].clientX - startX;
-            if (moveX > 0 && moveX < 80) {
-                wrapper.style.transform = `translateX(${moveX}px)`;
-            }
-        }, { passive: true });
-        wrapper.addEventListener('touchend', (e) => {
-            let endX = e.changedTouches[0].clientX;
-            if (endX - startX > 60) {
-                startReply(msg.id, msg.sender, msg.text || "Fotoğraf");
-            }
-            wrapper.style.transform = "translateX(0px)";
-        });
-
-        wrapper.addEventListener('mousedown', (e) => {
-            startX = e.clientX;
-            const onMouseMove = (ev) => {
-                let moveX = ev.clientX - startX;
-                if (moveX > 0 && moveX < 80) wrapper.style.transform = `translateX(${moveX}px)`;
-            };
-            const onMouseUp = (ev) => {
-                if (ev.clientX - startX > 60) startReply(msg.id, msg.sender, msg.text || "Fotoğraf");
-                wrapper.style.transform = "translateX(0px)";
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            };
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        });
 
         let replyHtml = "";
         if (msg.replyTo && globalMessages[msg.replyTo]) {
             const parentMsg = globalMessages[msg.replyTo];
-            replyHtml = `
-                <div class="msg-replied-inside">
-                    <small><b>${parentMsg.sender}</b></small>
-                    <p style="font-size:0.75rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${parentMsg.text || "📷 Fotoğraf"}</p>
-                </div>
-            `;
+            replyHtml = `<div class="msg-replied-inside"><small><b>${parentMsg.sender}</b></small><p>${parentMsg.text || "📷 Fotoğraf"}</p></div>`;
         }
 
         let mediaHtml = msg.sharedImg ? `<img src="${msg.sharedImg}" class="shared-chat-img" onclick="viewProfileImage('${msg.sharedImg}')">` : "";
 
-        let tickHtml = "";
-        if (isMe) {
-            const onlineCount = Object.keys(activeUsersData).length;
-            const readCount = msg.reads ? Object.keys(msg.reads).length : 0;
-            const isReadByEveryone = readCount >= (onlineCount - 1) && onlineCount > 1;
-
-            if (isReadByEveryone) {
-                tickHtml = `<i class="fa-solid fa-check-double tick-icon read"></i>`;
-            } else {
-                tickHtml = `<i class="fa-solid fa-check-double tick-icon"></i>`;
-            }
-        }
-
         const optionsContainer = document.createElement("div");
         optionsContainer.className = "msg-options-container";
         optionsContainer.innerHTML = `
-            <button class="msg-options-trigger" onclick="openActionMenu(event, '${msg.id}', '${msg.sender}', '${msg.senderUid}', ${isMe})">
+            <button class="msg-options-trigger" onclick="openActionMenu(event, '${msg.id}', '${msg.sender}', '${msg.senderUid}', ${isMe}, ${isAmIOwner})">
                 <i class="fa-solid fa-ellipsis-vertical"></i>
             </button>
         `;
@@ -402,37 +293,14 @@ function renderMessages(messagesList) {
         mainBox.className = "msg-main-box";
         const senderNameHtml = isMe ? "" : `<strong>${msg.sender}</strong><br>`;
 
-        let reactionsHtml = "";
-        if (msg.reactions) {
-            const counts = {};
-            Object.values(msg.reactions).forEach(emo => counts[emo] = (counts[emo] || 0) + 1);
-            if (Object.keys(counts).length > 0) {
-                reactionsHtml = `<div class="reactions-row-container">`;
-                Object.entries(counts).forEach(([emo, cnt]) => {
-                    reactionsHtml += `<div class="reaction-pill" onclick="toggleReaction('${msg.id}', '${emo}')"><span>${emo}</span><span class="reaction-count">${cnt}</span></div>`;
-                });
-                reactionsHtml += `</div>`;
-            }
-        }
-
         mainBox.innerHTML = `
-            <div class="msg-bubble">
-                ${replyHtml}
-                ${senderNameHtml}
-                ${msg.text}
-                ${mediaHtml}
-            </div>
-            <div class="msg-meta-row">
-                <span class="msg-meta">${msg.time}</span>
-                ${tickHtml}
-            </div>
-            ${reactionsHtml}
+            <div class="msg-bubble">${replyHtml}${senderNameHtml}${msg.text}${mediaHtml}</div>
+            <div class="msg-meta-row"><span class="msg-meta">${msg.time}</span></div>
         `;
 
         const avatarImg = document.createElement("img");
         avatarImg.className = "msg-avatar-img";
         avatarImg.src = msg.userImg || "https://via.placeholder.com/150?text=👤";
-        avatarImg.onclick = () => viewProfileImage(avatarImg.src);
 
         wrapper.appendChild(avatarImg);
         wrapper.appendChild(mainBox);
@@ -443,8 +311,8 @@ function renderMessages(messagesList) {
     chatMessagesDiv.scrollTop = chatMessagesDiv.scrollHeight;
 }
 
-// Menü ve Banlama Yetkileri
-function openActionMenu(event, id, senderName, senderUid, isMe) {
+// Gelişmiş Kurucu Menüsü
+function openActionMenu(event, id, senderName, senderUid, isMe, isAmIOwner) {
     event.stopPropagation();
     document.querySelectorAll(".action-menu").forEach(el => el.remove());
 
@@ -452,55 +320,48 @@ function openActionMenu(event, id, senderName, senderUid, isMe) {
     const menu = document.createElement("div");
     menu.className = "action-menu";
 
-    let reactionSelectorHtml = `
-        <div class="reaction-selector-bar">
-            <span onclick="toggleReaction('${id}', '👍')">👍</span>
-            <span onclick="toggleReaction('${id}', '❤️')">❤️</span>
-            <span onclick="toggleReaction('${id}', '😂')">😂</span>
-            <span onclick="toggleReaction('${id}', '😮')">😮</span>
-            <span onclick="toggleReaction('${id}', '🎉')">🎉</span>
-        </div>
-    `;
-
     const msgText = globalMessages[id] ? (globalMessages[id].text || "Fotoğraf") : "Mesaj";
     let actionButtonsHtml = `<button onclick="startReply('${id}', '${senderName}', '${msgText.replace(/'/g, "\\'")}')"><i class="fa-solid fa-reply"></i> Yanıtla</button>`;
 
-    if (isMe || isAdmin) {
+    // SİLME YETKİSİ: Mesaj benimse VEYA ben odanın kurucusuysam silebilir edebilirim
+    if (isMe || isAmIOwner) {
         actionButtonsHtml += `<button class="delete-btn" onclick="deleteMessage('${id}')"><i class="fa-solid fa-trash"></i> Sil</button>`;
     }
 
-    if (isAdmin && senderUid !== userUniqueId) {
-        actionButtonsHtml += `<button class="ban-btn" onclick="banUser('${senderUid}', '${senderName}')"><i class="fa-solid fa-user-slash"></i> Kullanıcıyı Banla</button>`;
+    // ODADAN ATMA YETKİSİ: Eğer ben odanın kurucusuysam ve tıkladığım kişi ben değilsem onu atabilirim
+    if (isAmIOwner && senderUid !== userUniqueId) {
+        actionButtonsHtml += `<button class="ban-btn" onclick="kickUserFromRoom('${senderUid}', '${senderName}')"><i class="fa-solid fa-user-slash"></i> Odadan At</button>`;
     }
 
-    menu.innerHTML = reactionSelectorHtml + actionButtonsHtml;
+    menu.innerHTML = actionButtonsHtml;
     triggerBtn.parentElement.appendChild(menu);
 }
 
-function banUser(targetUid, targetName) {
-    if (confirm(`${targetName} adlı kullanıcıyı odadan süresiz banlamak istiyor musunuz?`)) {
-        database.ref('banned_v5/' + targetUid).set({
-            bannedName: targetName,
-            bannedBy: currentUser,
-            timestamp: Date.now()
-        });
-        database.ref('online_users_v5/' + targetUid).remove();
-        alert(`${targetName} başarıyla banlandı!`);
+// Kurucunun Birini Odadan Atma Fonksiyonu
+function kickUserFromRoom(targetUid, targetName) {
+    if (confirm(`${targetName} adlı üyeyi bu odadan atmak istiyor musunuz?`)) {
+        database.ref(`rooms_v5/${currentRoomId}/banned/${targetUid}`).set(true);
+        database.ref(`rooms_v5/${currentRoomId}/members/${targetUid}`).remove();
+        database.ref(`rooms_v5/${currentRoomId}/presence/${targetUid}`).remove();
+        pushSystemMessage(`Kurucu, ${targetName} kullanıcısını odadan attı.`);
     }
 }
 
-function deleteMessage(id) { database.ref('messages_v5/' + id).remove(); }
+function deleteMessage(id) { database.ref(`rooms_v5/${currentRoomId}/messages/${id}`).remove(); }
 
-function toggleReaction(msgId, emoji) {
-    if (!userUniqueId) return;
-    const ref = database.ref(`messages_v5/${msgId}/reactions/${userUniqueId}`);
-    ref.get().then(snap => snap.exists() && snap.val() === emoji ? ref.remove() : ref.set(emoji));
+// Mesaj Gönderme Motoru (Odaya Özel)
+function sendMessage() {
+    const input = document.getElementById("message-input");
+    const text = input.value.trim();
+    if (text === "") return;
+    pushMessageToFirebase(text, null);
+    input.value = "";
+    cancelReply();
+    if (userUniqueId) database.ref(`rooms_v5/${currentRoomId}/typing/${userUniqueId}`).remove();
 }
 
-// Mesaj Gönderme
 function sendMediaMessage(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+    const file = event.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = async (e) => {
         const optimizedImg = await compressImage(e.target.result, 600, 600);
@@ -510,69 +371,39 @@ function sendMediaMessage(event) {
     event.target.value = "";
 }
 
-function sendMessage() {
-    const input = document.getElementById("message-input");
-    const text = input.value.trim();
-    if (text === "") return;
-    pushMessageToFirebase(text, null);
-    input.value = "";
-    cancelReply();
-    if (userUniqueId) database.ref('typing_v5/' + userUniqueId).remove();
-}
-
 function pushMessageToFirebase(text, sharedImg) {
     const id = "msg_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
     const now = new Date();
     const timeString = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
 
-    database.ref('messages_v5/' + id).set({
-        id: id,
-        sender: currentUser,
-        senderUid: userUniqueId,
-        userImg: currentUserImgB64,
-        text: text,
-        sharedImg: sharedImg,
-        time: timeString,
-        replyTo: activeReplyId ? activeReplyId : null,
+    database.ref(`rooms_v5/${currentRoomId}/messages/${id}`).set({
+        id: id, sender: currentUser, senderUid: userUniqueId, userImg: currentUserImgB64,
+        text: text, sharedImg: sharedImg, time: timeString, replyTo: activeReplyId ? activeReplyId : null,
         orderTimestamp: Date.now()
     });
 }
 
 function pushSystemMessage(text) {
     const id = "sys_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7);
-    database.ref('messages_v5/' + id).set({
-        id: id,
-        text: text,
-        isSystem: true,
-        orderTimestamp: Date.now()
-    });
+    database.ref(`rooms_v5/${currentRoomId}/messages/${id}`).set({ id: id, text: text, isSystem: true, orderTimestamp: Date.now() });
 }
 
-// Diğer Yardımcı Fonksiyonlar
-function viewProfileImage(src) {
-    const modal = document.getElementById("image-viewer-modal");
-    const img = document.getElementById("viewer-img");
-    img.src = src; modal.style.display = "flex";
-}
+// Diğer Yardımcılar
+function viewProfileImage(src) { document.getElementById("viewer-img").src = src; document.getElementById("image-viewer-modal").style.display = "flex"; }
 function closeImageViewer() { document.getElementById("image-viewer-modal").style.display = "none"; }
-function toggleEmojiMenu() {
-    const menu = document.getElementById("emoji-menu");
-    menu.style.display = menu.style.display === "none" ? "grid" : "none";
+function toggleEmojiMenu() { const menu = document.getElementById("emoji-menu"); menu.style.display = menu.style.display === "none" ? "grid" : "none"; }
+function appendEmoji(emoji) { const input = document.getElementById("message-input"); input.value += emoji; input.focus(); document.getElementById("emoji-menu").style.display = "none"; handleTypingStatus(); }
+function startReply(id, sender, text) { activeReplyId = id; document.getElementById("reply-target-user").innerText = `${sender} yanıtlanıyor`; document.getElementById("reply-target-text").innerText = text; document.getElementById("reply-preview-bar").style.display = "flex"; document.getElementById("message-input").focus(); }
+function cancelReply() { activeReplyId = null; document.getElementById("reply-preview-bar").style.display = "none"; }
+function toggleSearchBox() {
+    const input = document.getElementById("search-input");
+    if (input.style.display === "none") { input.style.display = "inline-block"; input.focus(); }
+    else { input.style.display = "none"; input.value = ""; searchQuery = ""; loadMessages(); }
 }
-function appendEmoji(emoji) {
-    const input = document.getElementById("message-input");
-    input.value += emoji; input.focus();
-    document.getElementById("emoji-menu").style.display = "none";
-    handleTypingStatus();
-}
-function startReply(id, sender, text) {
-    activeReplyId = id;
-    document.getElementById("reply-target-user").innerText = `${sender} yanıtlanıyor`;
-    document.getElementById("reply-target-text").innerText = text;
-    document.getElementById("reply-preview-bar").style.display = "flex";
-    document.getElementById("message-input").focus();
-}
-function cancelReply() {
-    activeReplyId = null;
-    document.getElementById("reply-preview-bar").style.display = "none";
+function filterMessages() {
+    searchQuery = document.getElementById("search-input").value.toLowerCase().trim();
+    const filtered = Object.values(globalMessages)
+        .filter(msg => searchQuery === "" || (msg.text && msg.text.toLowerCase().includes(searchQuery)))
+        .sort((a, b) => (a.orderTimestamp || 0) - (b.orderTimestamp || 0));
+    renderMessages(filtered);
 }
