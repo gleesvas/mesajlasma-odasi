@@ -1,3 +1,7 @@
+/* ==========================================
+   ULTRA CHAT GENEL STİL DOSYASI (v5.8 - Tam Mobil Tam Ekran)
+========================================== */
+
 :root {
     --primary: #3b82f6;
     --primary-hover: #2563eb;
@@ -5,7 +9,6 @@
     --system-msg-txt: #3b82f6;
 }
 
-/* Gece / Gündüz Modu Renk Değişkenleri */
 body.light-mode {
     --bg-main: #f1f5f9;
     --bg-chat: #0f172a;
@@ -37,38 +40,36 @@ body.dark-mode {
     padding: 0;
     box-sizing: border-box;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    /* Mobil tıklama gölgesini kaldırır */
 }
 
 body {
     background-color: var(--bg-main);
     height: 100vh;
+    height: 100dvh;
+    /* MOBİL TARAYICI ALT BAR DÜZELTMESİ (Kritik!) */
     width: 100vw;
     overflow: hidden;
-    transition: background 0.3s;
 }
 
-/* ==========================================
-   ANA ESNEK (FLEX) EKRENA YAYILMA DÜZENİ
-========================================== */
 .main-interface-wrapper {
     display: flex;
     width: 100%;
-    height: 100vh;
+    height: 100%;
     overflow: hidden;
 }
 
-/* SOHBET KUTUSU: Sağdaki boşluğu emerek tüm ekrana yayılır */
 .chat-container {
     flex: 1;
     display: flex;
     flex-direction: column;
     height: 100%;
     min-width: 0;
-    /* Mobilde taşmayı önleyen en kritik ayar */
     background: var(--bg-chat);
 }
 
-/* SAĞ ÜYE PANELİ: Sabit genişlikte sağ köşeye yapışır */
+/* SAĞ ÜYE PANELİ - MASAÜSTÜ VARSAYILAN */
 .members-sidebar {
     width: 280px;
     min-width: 280px;
@@ -77,14 +78,43 @@ body {
     display: flex;
     flex-direction: column;
     height: 100%;
-    transition: background 0.3s, border 0.3s;
+    transition: transform 0.3s ease, background 0.3s;
+    z-index: 999;
 }
 
-/* ==========================================
-   ÜST BAŞLIK ALANI (HEADER)
-========================================== */
+.close-sidebar-mobile-btn {
+    display: none;
+}
+
+/* Masaüstünde çarpı gizli */
+
+/* SAĞ ÜSTTEKİ OK İKONU STİLİ */
+.header-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 20px;
+    transition: background 0.2s;
+}
+
+.header-user:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.toggle-sidebar-icon {
+    color: #94a3b8;
+    font-size: 0.85rem;
+    transition: transform 0.3s;
+}
+
+.toggle-sidebar-icon.rotated {
+    transform: rotate(180deg);
+}
+
 .chat-header {
-    padding: 12px 15px;
+    padding: 10px 15px;
     background: rgba(15, 23, 42, 0.2);
     border-bottom: 1px solid var(--border-color);
     display: flex;
@@ -107,8 +137,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 140px;
-    /* Mobilde oda adının taşmasını önler */
+    max-width: 120px;
 }
 
 .header-action-btn {
@@ -117,20 +146,8 @@ body {
     color: #94a3b8;
     font-size: 1rem;
     cursor: pointer;
-    padding: 8px;
+    padding: 6px;
     border-radius: 8px;
-    transition: all 0.2s;
-}
-
-.header-action-btn:hover {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.1);
-}
-
-.header-user {
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }
 
 .header-user img {
@@ -139,7 +156,6 @@ body {
     border-radius: 50%;
     object-fit: cover;
     border: 2px solid var(--primary);
-    cursor: pointer;
 }
 
 .user-badge {
@@ -155,17 +171,15 @@ body {
 #search-input {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid var(--border-color);
-    padding: 6px 10px;
+    padding: 5px 10px;
     border-radius: 8px;
     color: white;
     outline: none;
     font-size: 0.8rem;
-    max-width: 100px;
+    max-width: 90px;
 }
 
-/* ==========================================
-   MESAJLAR ALANI
-========================================== */
+/* MESAJLAR ALANI */
 .chat-messages {
     flex: 1;
     overflow-y: auto;
@@ -175,7 +189,6 @@ body {
     gap: 12px;
 }
 
-/* Sistem Mesajları */
 .system-msg-wrapper {
     align-self: center;
     background: var(--system-msg-bg);
@@ -184,16 +197,13 @@ body {
     border-radius: 20px;
     font-size: 0.75rem;
     font-weight: 600;
-    text-align: center;
 }
 
-/* Mesaj Balonları Yapısı */
 .msg-wrapper {
     display: flex;
     align-items: flex-end;
     gap: 8px;
-    max-width: 85%;
-    /* Ekran genişliğine göre esnek limit */
+    max-width: 80%;
     position: relative;
 }
 
@@ -255,17 +265,14 @@ body {
 
 .shared-chat-img {
     max-width: 100%;
-    /* Mobilde taşmaması için %100 yapıldı */
-    max-height: 180px;
+    max-height: 160px;
     border-radius: 10px;
     margin-top: 6px;
     cursor: pointer;
     display: block;
 }
 
-/* ==========================================
-   YANITLAMA ÖNİZLEME BARI
-========================================== */
+/* YANITLAMA VE SEÇENEKLER */
 .reply-preview-bar {
     background: rgba(15, 23, 42, 0.8);
     border-top: 1px solid var(--border-color);
@@ -287,7 +294,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 200px;
+    max-width: 180px;
 }
 
 .msg-replied-inside {
@@ -299,9 +306,6 @@ body {
     font-size: 0.75rem;
 }
 
-/* ==========================================
-   MESAJ AYAR SEÇENEKLERİ (ÜÇ NOKTA)
-========================================== */
 .msg-options-container {
     position: relative;
     align-self: center;
@@ -316,7 +320,6 @@ body {
     font-size: 0.9rem;
 }
 
-/* Açılır Menü Pencereleri */
 .action-menu {
     position: absolute;
     bottom: 25px;
@@ -370,16 +373,17 @@ body.dark-mode .action-menu button:hover {
     color: #f97316;
 }
 
-/* ==========================================
-   SOHBET GİRİŞ ALANI (INPUT AREA)
-========================================== */
+/* SOHBET GİRİŞ ALANI (MOBİLDE SIKINTISIZ SABİT ALAN) */
 .chat-input-area {
     padding: 10px 12px;
-    background: rgba(15, 23, 42, 0.4);
+    background: #0b111e;
+    /* Mobilde klavye üstünde net durması için mat koyu arka plan */
     border-top: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     gap: 8px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    /* iPhone alt çentik koruması */
 }
 
 .btn-chat-action {
@@ -406,7 +410,6 @@ body.dark-mode .action-menu button:hover {
     outline: none;
     font-size: 0.9rem;
     min-width: 0;
-    /* Inputun mobilde dışarı taşmasını engeller */
 }
 
 #btn-send {
@@ -420,12 +423,13 @@ body.dark-mode .action-menu button:hover {
     font-size: 1rem;
 }
 
-/* ==========================================
-   SAĞ PANEL: ÜYE LİSTESİ İÇERİK AYARLARI
-========================================== */
+/* ÜYE LİSTESİ PANEL DETAYLARI */
 .sidebar-header {
     padding: 15px;
     border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .sidebar-header h3 {
@@ -483,9 +487,7 @@ body.dark-mode .action-menu button:hover {
     font-size: 0.8rem;
 }
 
-/* ==========================================
-   DİĞER MODÜLLER (EMOJI, TYPING, LIGHTBOX)
-========================================== */
+/* EMOJI, TYPING, LIGHTBOX */
 .emoji-dropdown-container {
     position: relative;
 }
@@ -579,28 +581,37 @@ body.dark-mode .emoji-menu {
 }
 
 /* ==========================================
-   RESPONSIVE (MOBİL VE TABLET MEDİA SORGULARI)
+   %100 MOBİL ÇEKMECELİ (DRAWER) SİSTEMİ
 ========================================== */
 @media (max-width: 768px) {
 
-    /* Mobilde sağ taraftaki üye listesini gizleyerek tam ekran sohbet alanı sağlıyoruz */
+    /* Sağ panel mobilde ekranın dışına (sağa) gizlenir */
     .members-sidebar {
-        display: none;
+        position: fixed;
+        top: 0;
+        right: 0;
+        transform: translateX(100%);
+        /* Tamamen sağa sakla */
+        box-shadow: -5px 0 25px rgba(0, 0, 0, 0.3);
+        width: 260px;
+        min-width: 260px;
     }
 
-    /* Mesaj kutusunun genişliğini mobilde biraz daha arttırıyoruz (ekranı efektif kullanmak için) */
+    /* JavaScript aktif ettiğinde panel ekrana kayarak girer */
+    .members-sidebar.active {
+        transform: translateX(0);
+    }
+
+    .close-sidebar-mobile-btn {
+        display: block;
+        background: none;
+        border: none;
+        color: #94a3b8;
+        font-size: 1.1rem;
+        cursor: pointer;
+    }
+
     .msg-wrapper {
         max-width: 90%;
-    }
-
-    /* Mobilde butonlar arasındaki dokunma alanlarını optimize ediyoruz */
-    .chat-input-area {
-        padding: 8px 10px;
-    }
-
-    /* Mesaj balonları fontunu mobilde hafif küçülterek daha okunaklı yapıyoruz */
-    .msg-bubble {
-        font-size: 0.88rem;
-        padding: 8px 12px;
     }
 }

@@ -407,3 +407,27 @@ function filterMessages() {
         .sort((a, b) => (a.orderTimestamp || 0) - (b.orderTimestamp || 0));
     renderMessages(filtered);
 }
+
+// MOBİL SAĞ PANEL AÇMA / KAPATMA FONKSİYONU
+function toggleMobileSidebar(event) {
+    if (window.innerWidth > 768) return; // Masaüstündeyse bu özellik çalışmasın
+    event.stopPropagation();
+
+    const sidebar = document.getElementById("members-sidebar");
+    const chevron = document.getElementById("sidebar-chevron");
+
+    sidebar.classList.toggle("active");
+    chevron.classList.toggle("rotated");
+}
+
+// Ekranda boş bir yere tıklandığında açık olan mobil paneli otomatik kapatma konforu
+document.addEventListener("click", (e) => {
+    if (window.innerWidth <= 768) {
+        const sidebar = document.getElementById("members-sidebar");
+        const chevron = document.getElementById("sidebar-chevron");
+        if (sidebar && sidebar.classList.contains("active") && !e.target.closest('.members-sidebar') && !e.target.closest('.header-user')) {
+            sidebar.classList.remove("active");
+            chevron.classList.remove("rotated");
+        }
+    }
+});

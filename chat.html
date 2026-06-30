@@ -3,8 +3,9 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ultra Chat Platformu v5.5</title>
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Ultra Chat Platformu v5.7</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -15,8 +16,10 @@
         <img id="viewer-img" src="" alt="Büyük Görsel">
     </div>
 
+    <!-- ANA ARAYÜZ (ESNEK BÖLÜNMÜŞ DÜZEN) -->
     <div class="main-interface-wrapper">
 
+        <!-- SOL/ORTA ALAN: SOHBET KUTUSU -->
         <div class="chat-container">
             <div class="chat-header">
                 <div class="header-left">
@@ -36,10 +39,11 @@
                     <button class="header-action-btn" id="theme-toggle-btn" onclick="toggleTheme()">
                         <i class="fa-solid fa-moon"></i>
                     </button>
-                    <div class="header-user">
-                        <img id="user-avatar-img" src="https://via.placeholder.com/150?text=👤" alt="Profilim"
-                            onclick="viewProfileImage(this.src)">
+                    <div class="header-user" onclick="toggleMobileSidebar(event)">
+                        <img id="user-avatar-img" src="https://via.placeholder.com/150?text=👤" alt="Profilim">
                         <span id="user-badge" class="user-badge">...</span>
+                        <!-- İSTEDİĞİN YAN PANELİ AÇAN OK İKONU -->
+                        <i class="fa-solid fa-chevron-right toggle-sidebar-icon" id="sidebar-chevron"></i>
                     </div>
                 </div>
             </div>
@@ -83,12 +87,15 @@
             </div>
         </div>
 
-        <div class="members-sidebar">
+        <!-- SAĞ ALAN: ODADAKİ ÜYELER PANELİ (MOBİL UYUMLU KAYAR YAPI) -->
+        <div class="members-sidebar" id="members-sidebar">
             <div class="sidebar-header">
                 <h3><i class="fa-solid fa-users"></i> Odadaki Üyeler</h3>
+                <!-- Mobilde kapatmak için çarpı butonu -->
+                <button class="close-sidebar-mobile-btn" onclick="toggleMobileSidebar(event)"><i
+                        class="fa-solid fa-xmark"></i></button>
             </div>
-            <div id="room-members-list" class="members-list">
-            </div>
+            <div id="room-members-list" class="members-list"></div>
         </div>
 
     </div>
